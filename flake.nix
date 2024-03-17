@@ -1,20 +1,20 @@
 {
   inputs = {
+    fenix = {
+      url = "github:nix-community/fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     flake-utils.url = "github:numtide/flake-utils";
     naersk.url = "github:nix-community/naersk";
     nixpkgs.url = "github:NixOS/nixpkgs/nixpkgs-unstable";
   };
 
-  outputs = { self, flake-utils, naersk, nixpkgs }:
+  outputs = { self, flake-utils, naersk, nixpkgs, fenix }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs { inherit system; };
         localeEnv = if pkgs.stdenv.isDarwin then "" else "LOCALE_ARCHIVE=${pkgs.glibcLocales}/lib/locale/locale-archive";
         naersk' = pkgs.callPackage naersk { };
-
-        vim-tests = runVimTests "vim" "${pkgs.vim}/bin/vim";
-
-        neovim-tests = runVimTests "neovim" "${pkgs.neovim}/bin/nvim";
 
         parinfer-rust = naersk'.buildPackage {
           src = ./.;
@@ -39,6 +39,10 @@
             touch $out
           '';
         };
+
+        vim-tests = runVimTests "vim" "${pkgs.vim}/bin/vim";
+
+        neovim-tests = runVimTests "neovim" "${pkgs.neovim}/bin/nvim";
       in
       rec {
         # For `nix build` & `nix run`:
@@ -66,7 +70,7 @@
             '';
           };
         };
-        # for `nix develop` (optional, can be skipped):
+
         devShells = with pkgs; {
           default = mkShell {
             nativeBuildInputs = [
@@ -74,7 +78,7 @@
               cargo
               vim
               neovim
-            ];
+            ] ++ lib.optional stdenv.isDarwin libiconv;
           };
         };
       });
