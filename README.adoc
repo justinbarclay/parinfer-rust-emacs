@@ -1,4 +1,11 @@
-= parinfer-rust
+= parinfer-rust-emacs
+
+____
+
+A fork of https://github.com/eraserhd/parinfer-rust
+
+You can read about my reasons here for moving away from upstream here: https://github.com/justinbarclay/parinfer-rust/discussions/9
+____
 
 Infer parentheses for Clojure, Lisp and Scheme.
 
@@ -15,7 +22,7 @@ Rather than switching between "paren" mode and "indent" mode, parinfer uses info
 
 Dependencies:
 
-* https://www.rust-lang.org/en-US/install.html[rust] >= 1.36
+* https://www.rust-lang.org/en-US/install.html[rust] >= 1.70
 * `clang` and `libclang-dev` packages or equivalent for your OS
 
 
@@ -26,11 +33,6 @@ If you just want to run `parinfer-rust` from the command-line:
 ....
 $ cargo build --release
 $ cargo install
-....
-
-If you use emacs add the corresponding feature flag during compilation
-....
-$ cargo build --release --features emacs
 ....
 
 === Vim and Neovim
