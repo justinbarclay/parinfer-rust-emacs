@@ -147,16 +147,16 @@ emacs::define_errors! {
 /// Set a field within the passed options.
 ///
 /// Valid field names are:
-/// - `partial-result'
-/// - `force-balance'
-/// - `return-parens'
-/// - `comment-char'
-/// - `string-delimiters'
-/// - `lisp-vline-symbols'
-/// - `lisp-block-comments'
-/// - `guile-block-comments'
-/// - `scheme-sexp-comments'
-/// - `janet-long-strings'
+/// - `:partial-result'
+/// - `:force-balance'
+/// - `:return-parens'
+/// - `:comment-char'
+/// - `:string-delimiters'
+/// - `:lisp-vline-symbols'
+/// - `:lisp-block-comments'
+/// - `:guile-block-comments'
+/// - `:scheme-sexp-comments'
+/// - `:janet-long-strings'
 ///
 /// # Examples
 ///
@@ -169,25 +169,25 @@ fn set_option<'a>(
   new_value: Option<Value<'a>>,
 ) -> Result<()> {
   let env = option_name.env;
-  if option_name.eq(env.intern("partial-result")?) {
+  if option_name.eq(env.intern(":partial-result")?) {
     options.partial_result = new_value
       .map(|val| val.is_not_nil())
       .unwrap_or_else(Options::default_false);
     return Ok(());
   }
-  if option_name.eq(env.intern("force-balance")?) {
+  if option_name.eq(env.intern(":force-balance")?) {
     options.force_balance = new_value
       .map(|val| val.is_not_nil())
       .unwrap_or_else(Options::default_false);
     return Ok(());
   }
-  if option_name.eq(env.intern("return-parens")?) {
+  if option_name.eq(env.intern(":return-parens")?) {
     options.return_parens = new_value
       .map(|val| val.is_not_nil())
       .unwrap_or_else(Options::default_false);
     return Ok(());
   }
-  if option_name.eq(env.intern("comment-char")?) {
+  if option_name.eq(env.intern(":comment-char")?) {
     options.comment_char = new_value
       .map(|val| String::from_lisp(val))
       .transpose()?
@@ -196,7 +196,7 @@ fn set_option<'a>(
       .unwrap_or_else(Options::default_comment);
     return Ok(());
   }
-  if option_name.eq(env.intern("string-delimiters")?) {
+  if option_name.eq(env.intern(":string-delimiters")?) {
     if let Some(new_value) = new_value {
       let vector = Vector::from_lisp(new_value)?;
       let rust_values = vector
@@ -209,31 +209,31 @@ fn set_option<'a>(
     }
     return Ok(());
   }
-  if option_name.eq(env.intern("lisp-vline-symbols")?) {
+  if option_name.eq(env.intern(":lisp-vline-symbols")?) {
     options.lisp_vline_symbols = new_value
       .map(|val| val.is_not_nil())
       .unwrap_or_else(Options::default_false);
     return Ok(());
   }
-  if option_name.eq(env.intern("lisp-block-comments")?) {
+  if option_name.eq(env.intern(":lisp-block-comments")?) {
     options.lisp_block_comments = new_value
       .map(|val| val.is_not_nil())
       .unwrap_or_else(Options::default_false);
     return Ok(());
   }
-  if option_name.eq(env.intern("guile-block-comments")?) {
+  if option_name.eq(env.intern(":guile-block-comments")?) {
     options.guile_block_comments = new_value
       .map(|val| val.is_not_nil())
       .unwrap_or_else(Options::default_false);
     return Ok(());
   }
-  if option_name.eq(env.intern("scheme-sexp-comments")?) {
+  if option_name.eq(env.intern(":scheme-sexp-comments")?) {
     options.scheme_sexp_comments = new_value
       .map(|val| val.is_not_nil())
       .unwrap_or_else(Options::default_false);
     return Ok(());
   }
-  if option_name.eq(env.intern("janet-long-strings")?) {
+  if option_name.eq(env.intern(":janet-long-strings")?) {
     options.janet_long_strings = new_value
       .map(|val| val.is_not_nil())
       .unwrap_or_else(Options::default_false);
@@ -267,35 +267,35 @@ fn get_option<'a>(options: &Options, option_name: Value<'a>) -> Result<Value<'a>
   // The function is returning a type-erased Value because it can either be a boolean
   // or a list
   let env = option_name.env;
-  if option_name.eq(env.intern("partial-result")?) {
+  if option_name.eq(env.intern(":partial-result")?) {
     return Ok(options.partial_result.into_lisp(env)?);
   }
-  if option_name.eq(env.intern("force-balance")?) {
+  if option_name.eq(env.intern(":force-balance")?) {
     return Ok(options.force_balance.into_lisp(env)?);
   }
-  if option_name.eq(env.intern("return-parens")?) {
+  if option_name.eq(env.intern(":return-parens")?) {
     return Ok(options.return_parens.into_lisp(env)?);
   }
-  if option_name.eq(env.intern("comment-char")?) {
+  if option_name.eq(env.intern(":comment-char")?) {
     return Ok(options.comment_char.to_string().into_lisp(env)?);
   }
-  if option_name.eq(env.intern("string-delimiters")?) {
+  if option_name.eq(env.intern(":string-delimiters")?) {
     // return Ok(to_lisp_vec(env, options.string_delimiters.clone())?);
     return Ok(VecToVector(options.string_delimiters.clone()).into_lisp(env)?);
   }
-  if option_name.eq(env.intern("lisp-vline-symbols")?) {
+  if option_name.eq(env.intern(":lisp-vline-symbols")?) {
     return Ok(options.lisp_vline_symbols.into_lisp(env)?);
   }
-  if option_name.eq(env.intern("lisp-block-comments")?) {
+  if option_name.eq(env.intern(":lisp-block-comments")?) {
     return Ok(options.lisp_block_comments.into_lisp(env)?);
   }
-  if option_name.eq(env.intern("guile-block-comments")?) {
+  if option_name.eq(env.intern(":guile-block-comments")?) {
     return Ok(options.guile_block_comments.into_lisp(env)?);
   }
-  if option_name.eq(env.intern("scheme-sexp-comments")?) {
+  if option_name.eq(env.intern(":scheme-sexp-comments")?) {
     return Ok(options.scheme_sexp_comments.into_lisp(env)?);
   }
-  if option_name.eq(env.intern("janet-long-strings")?) {
+  if option_name.eq(env.intern(":janet-long-strings")?) {
     return Ok(options.janet_long_strings.into_lisp(env)?);
   }
 
