@@ -231,7 +231,7 @@ fn set_option<'a>(
       .unwrap_or_else(Options::default_false);
     return Ok(());
   }
-  if option_name.eq(env.intern("julia-long-strings")?) {
+  if option_name.eq(env.intern("janet-long-strings")?) {
     options.janet_long_strings = new_value
       .map(|val| val.is_not_nil())
       .unwrap_or_else(Options::default_false);
@@ -293,7 +293,7 @@ fn get_option<'a>(options: &Options, option_name: Value<'a>) -> Result<Value<'a>
   if option_name.eq(env.intern("scheme-sexp-comments")?) {
     return Ok(options.scheme_sexp_comments.into_lisp(env)?);
   }
-  if option_name.eq(env.intern("julia-long-strings")?) {
+  if option_name.eq(env.intern("janet-long-strings")?) {
     return Ok(options.janet_long_strings.into_lisp(env)?);
   }
 
