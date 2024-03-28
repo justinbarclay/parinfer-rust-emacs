@@ -31,6 +31,48 @@ fn to_i64(value: Option<usize>) -> Option<i64> {
   }
 }
 
+enum EmacsOptions {
+  PartialResult,
+  ForceBalance,
+  ReturnParens,
+  CommentChar,
+  StringDelimiters,
+  LispVlineSymbols,
+  LispBlockComments,
+  GuileBlockComments,
+  SchemeSexpComments,
+  JanetLongStrings,
+}
+
+impl FromLisp<'_> for EmacsOptions {
+  fn from_lisp(value: Value<'_>) -> Result<Self> {
+    let env = value.env;
+    if value.eq(env.intern(":partial-result")?) {
+      Ok(EmacsOptions::PartialResult)
+    } else if value.eq(env.intern(":force-balance")?) {
+      Ok(EmacsOptions::ForceBalance)
+    } else if value.eq(env.intern(":return-parens")?) {
+      Ok(EmacsOptions::ReturnParens)
+    } else if value.eq(env.intern(":comment-char")?) {
+      Ok(EmacsOptions::CommentChar)
+    } else if value.eq(env.intern(":string-delimiters")?) {
+      Ok(EmacsOptions::StringDelimiters)
+    } else if value.eq(env.intern(":lisp-vline-symbols")?) {
+      Ok(EmacsOptions::LispVlineSymbols)
+    } else if value.eq(env.intern(":lisp-block-comments")?) {
+      Ok(EmacsOptions::LispBlockComments)
+    } else if value.eq(env.intern(":guile-block-comments")?) {
+      Ok(EmacsOptions::GuileBlockComments)
+    } else if value.eq(env.intern(":scheme-sexp-comments")?) {
+      Ok(EmacsOptions::SchemeSexpComments)
+    } else if value.eq(env.intern(":janet-long-strings")?) {
+      Ok(EmacsOptions::JanetLongStrings)
+    } else {
+      env.signal(unknown_option_error, [value])
+    }
+  }
+}
+
 #[emacs::module(name = "parinfer-rust")]
 pub fn init(_: &Env) -> Result<()> {
   Ok(())
@@ -161,86 +203,76 @@ emacs::define_errors! {
 /// # Examples
 ///
 /// ```elisp,no_run
-/// (parinfer-rust-set-option options 'partial-result t)
+/// (parinfer-rust-set-option options :partial-result t)
 /// ```
 fn set_option<'a>(
   options: &mut Options,
-  option_name: Value<'a>,
+  option: EmacsOptions,
   new_value: Option<Value<'a>>,
 ) -> Result<()> {
-  let env = option_name.env;
-  if option_name.eq(env.intern(":partial-result")?) {
-    options.partial_result = new_value
-      .map(|val| val.is_not_nil())
-      .unwrap_or_else(Options::default_false);
-    return Ok(());
-  }
-  if option_name.eq(env.intern(":force-balance")?) {
-    options.force_balance = new_value
-      .map(|val| val.is_not_nil())
-      .unwrap_or_else(Options::default_false);
-    return Ok(());
-  }
-  if option_name.eq(env.intern(":return-parens")?) {
-    options.return_parens = new_value
-      .map(|val| val.is_not_nil())
-      .unwrap_or_else(Options::default_false);
-    return Ok(());
-  }
-  if option_name.eq(env.intern(":comment-char")?) {
-    options.comment_char = new_value
-      .map(|val| String::from_lisp(val))
-      .transpose()?
-      .map(|char_as_str| char_as_str.chars().next())
-      .flatten()
-      .unwrap_or_else(Options::default_comment);
-    return Ok(());
-  }
-  if option_name.eq(env.intern(":string-delimiters")?) {
-    if let Some(new_value) = new_value {
-      let vector = Vector::from_lisp(new_value)?;
-      let rust_values = vector
-        .into_iter()
-        .map(|inner_value| String::from_lisp(inner_value))
-        .collect::<Result<Vec<String>>>()?;
-      options.string_delimiters = rust_values;
-    } else {
-      options.string_delimiters = Options::default_string_delimiters();
+  match option {
+    EmacsOptions::PartialResult => {
+      options.partial_result = new_value
+        .map(|val| val.is_not_nil())
+        .unwrap_or_else(Options::default_false);
     }
-    return Ok(());
+    EmacsOptions::ForceBalance => {
+      options.force_balance = new_value
+        .map(|val| val.is_not_nil())
+        .unwrap_or_else(Options::default_false);
+    }
+    EmacsOptions::ReturnParens => {
+      options.return_parens = new_value
+        .map(|val| val.is_not_nil())
+        .unwrap_or_else(Options::default_false);
+    }
+    EmacsOptions::CommentChar => {
+      options.comment_char = new_value
+        .map(|val| String::from_lisp(val))
+        .transpose()?
+        .map(|char_as_str| char_as_str.chars().next())
+        .flatten()
+        .unwrap_or_else(Options::default_comment);
+    }
+    EmacsOptions::StringDelimiters => {
+      if let Some(new_value) = new_value {
+        let vector = Vector::from_lisp(new_value)?;
+        let rust_values = vector
+          .into_iter()
+          .map(|inner_value| String::from_lisp(inner_value))
+          .collect::<Result<Vec<String>>>()?;
+        options.string_delimiters = rust_values;
+      } else {
+        options.string_delimiters = Options::default_string_delimiters();
+      }
+    }
+    EmacsOptions::LispVlineSymbols => {
+      options.lisp_vline_symbols = new_value
+        .map(|val| val.is_not_nil())
+        .unwrap_or_else(Options::default_false);
+    }
+    EmacsOptions::LispBlockComments => {
+      options.lisp_block_comments = new_value
+        .map(|val| val.is_not_nil())
+        .unwrap_or_else(Options::default_false);
+    }
+    EmacsOptions::GuileBlockComments => {
+      options.guile_block_comments = new_value
+        .map(|val| val.is_not_nil())
+        .unwrap_or_else(Options::default_false);
+    }
+    EmacsOptions::SchemeSexpComments => {
+      options.scheme_sexp_comments = new_value
+        .map(|val| val.is_not_nil())
+        .unwrap_or_else(Options::default_false);
+    }
+    EmacsOptions::JanetLongStrings => {
+      options.janet_long_strings = new_value
+        .map(|val| val.is_not_nil())
+        .unwrap_or_else(Options::default_false);
+    }
   }
-  if option_name.eq(env.intern(":lisp-vline-symbols")?) {
-    options.lisp_vline_symbols = new_value
-      .map(|val| val.is_not_nil())
-      .unwrap_or_else(Options::default_false);
-    return Ok(());
-  }
-  if option_name.eq(env.intern(":lisp-block-comments")?) {
-    options.lisp_block_comments = new_value
-      .map(|val| val.is_not_nil())
-      .unwrap_or_else(Options::default_false);
-    return Ok(());
-  }
-  if option_name.eq(env.intern(":guile-block-comments")?) {
-    options.guile_block_comments = new_value
-      .map(|val| val.is_not_nil())
-      .unwrap_or_else(Options::default_false);
-    return Ok(());
-  }
-  if option_name.eq(env.intern(":scheme-sexp-comments")?) {
-    options.scheme_sexp_comments = new_value
-      .map(|val| val.is_not_nil())
-      .unwrap_or_else(Options::default_false);
-    return Ok(());
-  }
-  if option_name.eq(env.intern(":janet-long-strings")?) {
-    options.janet_long_strings = new_value
-      .map(|val| val.is_not_nil())
-      .unwrap_or_else(Options::default_false);
-    return Ok(());
-  }
-
-  env.signal(unknown_option_error, [option_name])
+  Ok(())
 }
 
 #[defun(mod_in_name = false)]
@@ -261,45 +293,26 @@ fn set_option<'a>(
 /// # Examples
 ///
 /// ```elisp,no_run
-/// (parinfer-rust-get-option options 'partial-result)
+/// (parinfer-rust-get-option options :partial-result)
 /// ```
-fn get_option<'a>(options: &Options, option_name: Value<'a>) -> Result<Value<'a>> {
+fn get_option<'a>(env: &'a Env, options: &Options, option: EmacsOptions) -> Result<Value<'a>> {
   // The function is returning a type-erased Value because it can either be a boolean
   // or a list
-  let env = option_name.env;
-  if option_name.eq(env.intern(":partial-result")?) {
-    return Ok(options.partial_result.into_lisp(env)?);
-  }
-  if option_name.eq(env.intern(":force-balance")?) {
-    return Ok(options.force_balance.into_lisp(env)?);
-  }
-  if option_name.eq(env.intern(":return-parens")?) {
-    return Ok(options.return_parens.into_lisp(env)?);
-  }
-  if option_name.eq(env.intern(":comment-char")?) {
-    return Ok(options.comment_char.to_string().into_lisp(env)?);
-  }
-  if option_name.eq(env.intern(":string-delimiters")?) {
-    // return Ok(to_lisp_vec(env, options.string_delimiters.clone())?);
-    return Ok(VecToVector(options.string_delimiters.clone()).into_lisp(env)?);
-  }
-  if option_name.eq(env.intern(":lisp-vline-symbols")?) {
-    return Ok(options.lisp_vline_symbols.into_lisp(env)?);
-  }
-  if option_name.eq(env.intern(":lisp-block-comments")?) {
-    return Ok(options.lisp_block_comments.into_lisp(env)?);
-  }
-  if option_name.eq(env.intern(":guile-block-comments")?) {
-    return Ok(options.guile_block_comments.into_lisp(env)?);
-  }
-  if option_name.eq(env.intern(":scheme-sexp-comments")?) {
-    return Ok(options.scheme_sexp_comments.into_lisp(env)?);
-  }
-  if option_name.eq(env.intern(":janet-long-strings")?) {
-    return Ok(options.janet_long_strings.into_lisp(env)?);
-  }
 
-  env.signal(unknown_option_error, [option_name])
+  match option {
+    EmacsOptions::PartialResult => Ok(options.partial_result.into_lisp(env)?),
+    EmacsOptions::ForceBalance => Ok(options.force_balance.into_lisp(env)?),
+    EmacsOptions::ReturnParens => Ok(options.return_parens.into_lisp(env)?),
+    EmacsOptions::CommentChar => Ok(options.comment_char.to_string().into_lisp(env)?),
+    EmacsOptions::StringDelimiters => {
+      Ok(VecToVector(options.string_delimiters.clone()).into_lisp(env)?)
+    }
+    EmacsOptions::LispVlineSymbols => Ok(options.lisp_vline_symbols.into_lisp(env)?),
+    EmacsOptions::LispBlockComments => Ok(options.lisp_block_comments.into_lisp(env)?),
+    EmacsOptions::GuileBlockComments => Ok(options.guile_block_comments.into_lisp(env)?),
+    EmacsOptions::SchemeSexpComments => Ok(options.scheme_sexp_comments.into_lisp(env)?),
+    EmacsOptions::JanetLongStrings => Ok(options.janet_long_strings.into_lisp(env)?),
+  }
 }
 
 // Make a wrapper type to convince the compiler that the
@@ -559,6 +572,7 @@ impl IntoLisp<'_> for Error {
 }
 
 #[defun(mod_in_name = false)]
+
 /// Gives a hashmap like interface to extracting values from the Answer type
 /// Accepted keys are 'text', 'success', 'cursor_x', 'cursor_line', and 'error'
 ///
