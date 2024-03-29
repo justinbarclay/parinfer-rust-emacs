@@ -203,7 +203,7 @@ emacs::define_errors! {
 /// # Examples
 ///
 /// ```elisp,no_run
-/// (parinfer-rust-set-option options :partial-result t)
+/// (parinfer-rust-set-option options :guile-block-comments t)
 /// ```
 fn set_option<'a>(
   options: &mut Options,
@@ -279,16 +279,16 @@ fn set_option<'a>(
 /// Get a field within the passed options.
 ///
 /// Valid field names are:
-/// - `partial-result'
-/// - `force-balance'
-/// - `return-parens'
-/// - `comment-char'
-/// - `string-delimiters'
-/// - `lisp-vline-symbols'
-/// - `lisp-block-comments'
-/// - `guile-block-comments'
-/// - `scheme-sexp-comments'
-/// - `janet-long-strings'
+/// - `:partial-result'
+/// - `:force-balance'
+/// - `:return-parens'
+/// - `:comment-char'
+/// - `:string-delimiters'
+/// - `:lisp-vline-symbols'
+/// - `:lisp-block-comments'
+/// - `:guile-block-comments'
+/// - `:scheme-sexp-comments'
+/// - `:janet-long-strings'
 ///
 /// # Examples
 ///
@@ -419,12 +419,12 @@ fn make_request(mode: String, text: String, options: &mut Options) -> Result<Sha
   Ok(Rc::new(request))
 }
 
-/// Creates a Request from the given mode, current buffer text, and the set of Options
+/// Prints the Request as a rust struct
 ///
 /// # Examples
 ///
 /// ```elisp,no_run
-/// (parinfer--rust-print-request request)
+/// (parinfer-rust-print-request request)
 /// ```
 //
 #[defun(mod_in_name = false)]
@@ -574,12 +574,12 @@ impl IntoLisp<'_> for Error {
 #[defun(mod_in_name = false)]
 
 /// Gives a hashmap like interface to extracting values from the Answer type
-/// Accepted keys are 'text', 'success', 'cursor_x', 'cursor_line', and 'error'
+/// Accepted keys are :text, :success, :cursor-x, :cursor_line, and :error
 ///
 /// # Examples
 ///
 /// ```elisp,no_run
-/// (parinfer-rust-get-answer answer "success")
+/// (parinfer-rust-get-answer answer :text)
 /// ```
 fn get_answer<'a>(env: &'a Env, answer: &WrappedAnswer, key: AnswerKey) -> Result<Value<'a>> {
   let unwrapped_answer = answer.inner();
@@ -650,21 +650,6 @@ fn debug(
     }
   };
   Ok(())
-}
-
-////////////////////////////////
-// Error
-////////////////////////////////
-#[defun(mod_in_name = false)]
-/// Returns a string representation of an Error
-///
-/// # Examples
-///
-/// ```elisp,no_run
-/// (parinfer-rust-print-error error)
-/// ```
-fn print_error(error: &Error) -> Result<String> {
-  Ok(format!("{:?}", error).to_string())
 }
 
 #[defun(mod_in_name = false)]
