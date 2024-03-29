@@ -541,6 +541,20 @@ impl FromLisp<'_> for AnswerKey {
   }
 }
 
+impl IntoLisp<'_> for Error {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(&[
+      env.intern(":name")?,
+      self.name.to_string().into_lisp(env)?,
+      env.intern(":message")?,
+      self.message.into_lisp(env)?,
+      env.intern(":line_no")?,
+      self.line_no.into_lisp(env)?,
+      env.intern(":x")?,
+      self.x.into_lisp(env)?,
+    ])
+  }
+}
 #[defun(mod_in_name = false)]
 /// Gives a hashmap like interface to extracting values from the Answer type
 /// Accepted keys are 'text', 'success', 'cursor_x', 'cursor_line', and 'error'
@@ -631,35 +645,6 @@ fn debug(
 ////////////////////////////////
 // Error
 ////////////////////////////////
-#[defun(mod_in_name = false)]
-/// Gives a hashmap like interface to extracting values from the error type
-/// Accepted keys are 'text', 'success', 'cursor_x', 'cursor_line', and 'error'
-///
-/// # Examples
-///
-/// ```elisp,no_run
-/// (parinfer-rust-get-in-error error "message")
-/// ```
-fn get_in_error<'a>(env: &'a Env, error: &Error, key: Option<String>) -> Result<Value<'a>> {
-  let query = match key {
-    Some(key) => key,
-    None => "".to_string(),
-  };
-
-  match query.as_ref() {
-    "name" => error.name.to_string().into_lisp(env),
-    "message" => error.message.clone().into_lisp(env),
-    "x" => to_i64(Some(error.x)).into_lisp(env),
-    "line_no" => to_i64(Some(error.line_no)).into_lisp(env),
-    "input_x" => to_i64(Some(error.input_x)).into_lisp(env),
-    "input_line_no" => to_i64(Some(error.input_line_no)).into_lisp(env),
-    _ => {
-      env.message(format!("Key '{}' unsupported", query))?; // Can return an error
-      ().into_lisp(env)
-    }
-  }
-}
-
 #[defun(mod_in_name = false)]
 /// Returns a string representation of an Error
 ///
