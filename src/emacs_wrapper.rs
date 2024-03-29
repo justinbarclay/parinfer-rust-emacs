@@ -1,3 +1,5 @@
+use crate::types::{Paren, ParenTrail, TabStop};
+
 use super::parinfer::rc_process;
 use emacs::{Env, FromLisp, IntoLisp, Result, Value, Vector};
 use types::{Change, Error, Options, Request, SharedRequest, WrappedAnswer};
@@ -419,6 +421,143 @@ fn print_request(request: AliasedRequest) -> Result<String> {
 ////////////////////////////////
 // Answer
 ////////////////////////////////
+
+enum AnswerKey {
+  Text,
+  Success,
+  Error,
+  CursorX,
+  CursorLine,
+  TabStops,
+  ParenTrails,
+  Parens,
+}
+
+impl FromLisp<'_> for AnswerKey {
+  fn from_lisp(value: Value<'_>) -> Result<Self> {
+    let env = value.env;
+
+    if value.eq(env.intern(":text")?) {
+      Ok(AnswerKey::Text)
+    } else if value.eq(env.intern(":success")?) {
+      Ok(AnswerKey::Success)
+    } else if value.eq(env.intern(":error")?) {
+      Ok(AnswerKey::Error)
+    } else if value.eq(env.intern(":cursor-x")?) {
+      Ok(AnswerKey::CursorX)
+    } else if value.eq(env.intern(":cursor-line")?) {
+      Ok(AnswerKey::CursorLine)
+    } else if value.eq(env.intern(":tab-stops")?) {
+      Ok(AnswerKey::TabStops)
+    } else if value.eq(env.intern(":paren-trails")?) {
+      Ok(AnswerKey::ParenTrails)
+    } else if value.eq(env.intern(":parens")?) {
+      Ok(AnswerKey::Parens)
+    } else {
+      env.signal(unknown_option_error, [value])
+    }
+  }
+}
+
+impl IntoLisp<'_> for TabStop<'_> {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(&[
+      env.intern(":x")?,
+      self.x.into_lisp(env)?,
+      env.intern(":arg-x")?,
+      self.arg_x.into_lisp(env)?,
+      env.intern(":line-no")?,
+      self.line_no.into_lisp(env)?,
+      env.intern(":ch")?,
+      self.ch.into_lisp(env)?,
+    ])
+  }
+}
+
+impl IntoLisp<'_> for ParenTrail {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(&[
+      env.intern(":line-no")?,
+      self.line_no.into_lisp(env)?,
+      env.intern(":start-x")?,
+      self.start_x.into_lisp(env)?,
+      env.intern(":end-x")?,
+      self.end_x.into_lisp(env)?,
+    ])
+  }
+}
+
+struct ParenTrails(Vec<ParenTrail>);
+
+impl IntoLisp<'_> for ParenTrails {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(
+      self
+        .0
+        .into_iter()
+        .map(|paren_trail| paren_trail.into_lisp(env))
+        .collect::<Result<Vec<Value>>>()?
+        .as_slice(),
+    )
+  }
+}
+
+impl IntoLisp<'_> for Paren<'_> {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(&[
+      env.intern(":line-no")?,
+      self.line_no.into_lisp(env)?,
+      env.intern(":x")?,
+      self.x.into_lisp(env)?,
+    ])
+  }
+}
+
+struct Parens<'a>(Vec<Paren<'a>>);
+
+impl IntoLisp<'_> for Parens<'_> {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(
+      self
+        .0
+        .into_iter()
+        .map(|paren| paren.into_lisp(env))
+        .collect::<Result<Vec<Value>>>()?
+        .as_slice(),
+    )
+  }
+}
+
+struct TabStops<'a>(Vec<TabStop<'a>>);
+
+impl IntoLisp<'_> for TabStops<'_> {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(
+      self
+        .0
+        .into_iter()
+        .map(|tab_stop| tab_stop.into_lisp(env))
+        .collect::<Result<Vec<Value>>>()?
+        .as_slice(),
+    )
+  }
+}
+
+impl IntoLisp<'_> for Error {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(&[
+      env.intern(":name")?,
+      self.name.to_string().into_lisp(env)?,
+      env.intern(":message")?,
+      self.message.into_lisp(env)?,
+      env.intern(":line_no")?,
+      self.line_no.into_lisp(env)?,
+      env.intern(":x")?,
+      self.x.into_lisp(env)?,
+    ])
+  }
+}
+
 #[defun(mod_in_name = false)]
 /// Gives a hashmap like interface to extracting values from the Answer type
 /// Accepted keys are 'text', 'success', 'cursor_x', 'cursor_line', and 'error'
@@ -426,35 +565,28 @@ fn print_request(request: AliasedRequest) -> Result<String> {
 /// # Examples
 ///
 /// ```elisp,no_run
-/// (parinfer-rust-get-in-answer answer "success")
+/// (parinfer-rust-get-answer answer "success")
 /// ```
-fn get_in_answer<'a>(
-  env: &'a Env,
-  answer: &WrappedAnswer,
-  key: Option<String>,
-) -> Result<Value<'a>> {
+fn get_answer<'a>(env: &'a Env, answer: &WrappedAnswer, key: AnswerKey) -> Result<Value<'a>> {
   let unwrapped_answer = answer.inner();
-  let query = match key {
-    Some(key) => key,
-    None => return env.message("Missing 'key'"),
-  };
-
-  // I only care about some nested structures at the moment, errors,
-  // so leave tab_stops, paren_trails, and parens as unsupported
-  match query.as_ref() {
-    "text" => unwrapped_answer.text.to_string().into_lisp(env),
-    "success" => unwrapped_answer.success.into_lisp(env),
-    "cursor_x" => to_i64(unwrapped_answer.cursor_x).into_lisp(env),
-    "cursor_line" => to_i64(unwrapped_answer.cursor_line).into_lisp(env),
-    "error" => match unwrapped_answer.error.clone() {
+  match key {
+    AnswerKey::Text => unwrapped_answer.text.to_string().into_lisp(env),
+    AnswerKey::Success => unwrapped_answer.success.into_lisp(env),
+    AnswerKey::Error => match unwrapped_answer.error.clone() {
       Some(error) => Ok(RefCell::new(error).into_lisp(env)?),
       None => ().into_lisp(env),
     },
-    // "tab_stops"
-    // "paren_trails"
-    // "parens"
-    _ => {
-      env.message(format!("Key '{}' unsupported", query))?;
+    AnswerKey::CursorX => to_i64(unwrapped_answer.cursor_x).into_lisp(env),
+    AnswerKey::CursorLine => to_i64(unwrapped_answer.cursor_line).into_lisp(env),
+    // I only care about some nested structures at the moment, errors,
+    // so leave tab_stops, paren_trails, and parens as unsupported
+    AnswerKey::TabStops => TabStops(unwrapped_answer.tab_stops.clone()).into_lisp(env),
+    AnswerKey::ParenTrails => {
+      env.message("Paren trails are not supported")?;
+      ().into_lisp(env)
+    }
+    AnswerKey::Parens => {
+      env.message("Parens are not supported")?;
       ().into_lisp(env)
     }
   }
@@ -509,35 +641,6 @@ fn debug(
 ////////////////////////////////
 // Error
 ////////////////////////////////
-#[defun(mod_in_name = false)]
-/// Gives a hashmap like interface to extracting values from the error type
-/// Accepted keys are 'text', 'success', 'cursor_x', 'cursor_line', and 'error'
-///
-/// # Examples
-///
-/// ```elisp,no_run
-/// (parinfer-rust-get-in-error error "message")
-/// ```
-fn get_in_error<'a>(env: &'a Env, error: &Error, key: Option<String>) -> Result<Value<'a>> {
-  let query = match key {
-    Some(key) => key,
-    None => "".to_string(),
-  };
-
-  match query.as_ref() {
-    "name" => error.name.to_string().into_lisp(env),
-    "message" => error.message.clone().into_lisp(env),
-    "x" => to_i64(Some(error.x)).into_lisp(env),
-    "line_no" => to_i64(Some(error.line_no)).into_lisp(env),
-    "input_x" => to_i64(Some(error.input_x)).into_lisp(env),
-    "input_line_no" => to_i64(Some(error.input_line_no)).into_lisp(env),
-    _ => {
-      env.message(format!("Key '{}' unsupported", query))?; // Can return an error
-      ().into_lisp(env)
-    }
-  }
-}
-
 #[defun(mod_in_name = false)]
 /// Returns a string representation of an Error
 ///
