@@ -1,3 +1,5 @@
+use crate::types::{Paren, ParenTrail, TabStop};
+
 use super::parinfer::rc_process;
 use emacs::{Env, FromLisp, IntoLisp, Result, Value, Vector};
 use types::{Change, Error, Options, Request, SharedRequest, WrappedAnswer};
@@ -419,6 +421,126 @@ fn print_request(request: AliasedRequest) -> Result<String> {
 ////////////////////////////////
 // Answer
 ////////////////////////////////
+enum AnswerKey {
+  Text,
+  Success,
+  Error,
+  CursorX,
+  CursorLine,
+  TabStops,
+  ParenTrails,
+  Parens,
+}
+impl IntoLisp<'_> for TabStop<'_> {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(&[
+      env.intern(":x")?,
+      self.x.into_lisp(env)?,
+      env.intern(":arg-x")?,
+      self.arg_x.into_lisp(env)?,
+      env.intern(":line-no")?,
+      self.line_no.into_lisp(env)?,
+      env.intern(":ch")?,
+      self.ch.into_lisp(env)?,
+    ])
+  }
+}
+
+struct TabStops<'a>(Vec<TabStop<'a>>);
+
+impl IntoLisp<'_> for TabStops<'_> {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(
+      self
+        .0
+        .into_iter()
+        .map(|tab_stop| tab_stop.into_lisp(env))
+        .collect::<Result<Vec<Value>>>()?
+        .as_slice(),
+    )
+  }
+}
+
+impl IntoLisp<'_> for ParenTrail {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(&[
+      env.intern(":line-no")?,
+      self.line_no.into_lisp(env)?,
+      env.intern(":start-x")?,
+      self.start_x.into_lisp(env)?,
+      env.intern(":end-x")?,
+      self.end_x.into_lisp(env)?,
+    ])
+  }
+}
+
+struct ParenTrails(Vec<ParenTrail>);
+
+impl IntoLisp<'_> for ParenTrails {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(
+      self
+        .0
+        .into_iter()
+        .map(|paren_trail| paren_trail.into_lisp(env))
+        .collect::<Result<Vec<Value>>>()?
+        .as_slice(),
+    )
+  }
+}
+
+impl IntoLisp<'_> for Paren<'_> {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(&[
+      env.intern(":line-no")?,
+      self.line_no.into_lisp(env)?,
+      env.intern(":x")?,
+      self.x.into_lisp(env)?,
+    ])
+  }
+}
+
+struct Parens<'a>(Vec<Paren<'a>>);
+
+impl IntoLisp<'_> for Parens<'_> {
+  fn into_lisp(self, env: &Env) -> Result<Value> {
+    env.list(
+      self
+        .0
+        .into_iter()
+        .map(|paren| paren.into_lisp(env))
+        .collect::<Result<Vec<Value>>>()?
+        .as_slice(),
+    )
+  }
+}
+
+impl FromLisp<'_> for AnswerKey {
+  fn from_lisp(value: Value<'_>) -> Result<Self> {
+    let env = value.env;
+
+    if value.eq(env.intern(":text")?) {
+      Ok(AnswerKey::Text)
+    } else if value.eq(env.intern(":success")?) {
+      Ok(AnswerKey::Success)
+    } else if value.eq(env.intern(":error")?) {
+      Ok(AnswerKey::Error)
+    } else if value.eq(env.intern(":cursor-x")?) {
+      Ok(AnswerKey::CursorX)
+    } else if value.eq(env.intern(":cursor-line")?) {
+      Ok(AnswerKey::CursorLine)
+    } else if value.eq(env.intern(":tab-stops")?) {
+      Ok(AnswerKey::TabStops)
+    } else if value.eq(env.intern(":paren-trails")?) {
+      Ok(AnswerKey::ParenTrails)
+    } else if value.eq(env.intern(":parens")?) {
+      Ok(AnswerKey::Parens)
+    } else {
+      env.signal(unknown_option_error, [value])
+    }
+  }
+}
+
 #[defun(mod_in_name = false)]
 /// Gives a hashmap like interface to extracting values from the Answer type
 /// Accepted keys are 'text', 'success', 'cursor_x', 'cursor_line', and 'error'
