@@ -1,6 +1,6 @@
 [package]
 name = "parinfer_rust"
-version = "0.4.6-beta"
+version = "0.4.6-beta1"
 authors = ["Jason Felice <jason.m.felice@gmail.com>"]
 
 [lib]
