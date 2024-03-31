@@ -1,7 +1,7 @@
 use crate::types::{Paren, ParenTrail, TabStop};
 
 use super::parinfer::rc_process;
-use emacs::{Env, FromLisp, IntoLisp, Result, Value, Vector};
+use emacs::{Env, FromLisp, IntoLisp, Result, Value};
 use types::{Change, Error, Options, Request, SharedRequest, WrappedAnswer};
 
 use std::{cell::RefCell, convert::TryFrom, fs::OpenOptions, io::Write, rc::Rc};
@@ -42,6 +42,67 @@ enum EmacsOptions {
   GuileBlockComments,
   SchemeSexpComments,
   JanetLongStrings,
+}
+
+// An iterator over what is assumed to be an underlying Elisp List.
+struct List<'a>(Value<'a>);
+
+impl List<'_> {
+  fn length(&self) -> Result<i64> {
+    let env = self.0.env;
+    let length = env.call("length", [self.0])?;
+    FromLisp::from_lisp(length)
+  }
+}
+// This is a custom implementation of the FromLisp trait for the List type
+// So that we can _error_ out safely when going from a Value to a List
+impl<'a> FromLisp<'a> for List<'a> {
+  fn from_lisp(value: Value<'a>) -> Result<Self> {
+    let env = value.env;
+    if env.call("listp", [value])?.is_not_nil() {
+      Ok(List(value))
+    } else {
+      env.signal(
+        env.intern("wrong-type-argument")?,
+        [value, env.intern("list")?],
+      )
+    }
+  }
+}
+
+impl<'a> Iterator for List<'a> {
+  type Item = Value<'a>;
+
+  fn next(&mut self) -> Option<Self::Item> {
+    match (self.0.car(), self.0.cdr()) {
+      (Ok(v), Ok(next)) if self.0.is_not_nil() => {
+        self.0 = next;
+        Some(v)
+      }
+      _ => None,
+    }
+  }
+}
+
+// We could call this directly on the Value type or our wrapper for the value type
+// but then we would regularly expect panics here when a non list item is passed in
+impl<'e, T: FromLisp<'e> + Default> Into<Vec<T>> for List<'e> {
+  fn into(self) -> Vec<T> {
+    let mut result: Vec<T> = Vec::new();
+    let mut list = self.0;
+
+    print!("{}", self.length().unwrap());
+    while list.is_not_nil() {
+      list = match (list.car(), list.cdr()) {
+        (Ok(car), Ok(list)) => {
+          result.push(T::from_lisp(car).unwrap());
+          list
+        },
+        _ => break
+      };
+    }
+    result
+  }
 }
 
 impl FromLisp<'_> for EmacsOptions {
@@ -236,12 +297,7 @@ fn set_option<'a>(
     }
     EmacsOptions::StringDelimiters => {
       if let Some(new_value) = new_value {
-        let vector = Vector::from_lisp(new_value)?;
-        let rust_values = vector
-          .into_iter()
-          .map(|inner_value| String::from_lisp(inner_value))
-          .collect::<Result<Vec<String>>>()?;
-        options.string_delimiters = rust_values;
+        options.string_delimiters = List::from_lisp(new_value)?.into();
       } else {
         options.string_delimiters = Options::default_string_delimiters();
       }
@@ -322,7 +378,7 @@ struct VecToVector(Vec<String>);
 
 impl<'e> IntoLisp<'e> for VecToVector {
   fn into_lisp(self, env: &'e Env) -> Result<Value<'e>> {
-    env.vector(
+    env.list(
       self
         .0
         .into_iter()
