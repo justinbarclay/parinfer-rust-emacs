@@ -1,5 +1,4 @@
-use parinfer::chomp_cr;
-use types::*;
+use parinfer_lib::{types::*, parinfer::chomp_cr};
 use std::env;
 
 #[derive(Clone, Debug, Eq, PartialEq)]

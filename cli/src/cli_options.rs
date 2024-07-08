@@ -3,8 +3,8 @@ use std::env;
 use std::io;
 use std::io::Read;
 use serde_json;
-use types;
-use types::*;
+use parinfer_lib::{types, types::{*, Request}};
+
 
 pub enum InputType {
     Json,

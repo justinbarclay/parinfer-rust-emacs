@@ -3,25 +3,21 @@ extern crate getopts;
 extern crate serde;
 extern crate serde_json;
 
+extern crate parinfer_lib;
+
 #[macro_use]
 extern crate serde_derive;
 
-extern crate unicode_segmentation;
-extern crate unicode_width;
-
-
-mod changes;
 mod cli_options;
 mod kakoune;
-mod parinfer;
-mod types;
 
 use cli_options::OutputType;
 use kakoune::kakoune_output;
 use std::env;
 use std::io;
 use std::io::Write;
-use types::*;
+
+use parinfer_lib::{types::*, changes, parinfer};
 
 fn parse_args() -> cli_options::Options {
     let args: Vec<String> = env::args().collect();
