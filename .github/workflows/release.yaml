@@ -8,6 +8,10 @@ on:
 jobs:
   release:
     runs-on: ${{matrix.os}}
+    env:
+      ACTIONS_RUNNER_FORCE_ACTIONS_NODE_VERSION: node16
+      ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION: true
+    container: ${{ matrix.os == 'ubuntu-latest' && 'quay.io/pypa/manylinux2014_x86_64:latest' || null }}
     strategy:
       matrix:
         rust: [stable]
@@ -30,7 +34,7 @@ jobs:
             target: "x86_64-unknown-linux-gnu"
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3.5.3
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
